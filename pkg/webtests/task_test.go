@@ -171,6 +171,16 @@ func TestTask(t *testing.T) {
 				assert.Contains(t, rec.Body.String(), `"repeat_after":0`)
 				assert.NotContains(t, rec.Body.String(), `"repeat_after":3600`)
 			})
+			t.Run("Estimated duration", func(t *testing.T) {
+				rec, err := testHandler.testUpdateWithUser(nil, map[string]string{"projecttask": "1"}, `{"estimated_duration":3600}`)
+				require.NoError(t, err)
+				assert.Contains(t, rec.Body.String(), `"estimated_duration":3600`)
+			})
+			t.Run("Estimated duration negative", func(t *testing.T) {
+				_, err := testHandler.testUpdateWithUser(nil, map[string]string{"projecttask": "1"}, `{"estimated_duration":-1}`)
+				require.Error(t, err)
+				assert.Contains(t, err.(models.ValidationHTTPError).InvalidFields[0], "estimated_duration")
+			})
 			t.Run("Repeat after update done", func(t *testing.T) {
 				rec, err := testHandler.testUpdateWithUser(nil, map[string]string{"projecttask": "28"}, `{"done":true}`)
 				require.NoError(t, err)

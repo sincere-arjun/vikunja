@@ -99,6 +99,7 @@ import {
 	faCheckSquare,
 	faClock,
 	faComments,
+	faHourglassHalf,
 	faSave,
 	faSquareCheck,
 	faStar,
@@ -164,6 +165,7 @@ library.add(faForward)
 library.add(faGripLines)
 library.add(faHeader)
 library.add(faHistory)
+library.add(faHourglassHalf)
 library.add(faImage)
 library.add(faKeyboard)
 library.add(faLayerGroup)

@@ -26,6 +26,7 @@ A filter is one or more conditions of the form `field operator value`.
 | `done` | bool | `true` / `false` |
 | `priority` | number | 0 unset, 1 low … 5 do now |
 | `percent_done` | number | 0 to 1 |
+| `estimated_duration` | number | seconds; 0 means no estimate |
 | `due_date`, `start_date`, `end_date`, `done_at`, `created`, `updated` | date | see Dates |
 | `reminders` | date | matches if any reminder matches |
 | `title`, `description` | text | use `like` for partial matches |

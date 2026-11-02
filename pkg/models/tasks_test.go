@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"xorm.io/builder"
+	"xorm.io/xorm"
 )
 
 func TestTask_Create(t *testing.T) {
@@ -739,6 +740,90 @@ func TestTask_Update(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "updated with a field list", updatedTask.Title)
 		assert.Equal(t, int64(100), updatedTask.Priority, "priority must survive since it wasn't in the fields list")
+	})
+}
+
+func TestTask_EstimatedDuration(t *testing.T) {
+	u := &user.User{ID: 1}
+
+	readEstimate := func(t *testing.T, s *xorm.Session, id int64) int64 {
+		t.Helper()
+		task := &Task{ID: id}
+		require.NoError(t, task.ReadOne(s, u))
+		return task.EstimatedDuration
+	}
+
+	t.Run("create stores the estimate", func(t *testing.T) {
+		db.LoadAndAssertFixtures(t)
+		s := db.NewSession()
+		defer s.Close()
+
+		task := &Task{Title: "estimated", ProjectID: 1, EstimatedDuration: 5400}
+		require.NoError(t, task.Create(s, u))
+		require.NoError(t, s.Commit())
+
+		db.AssertExists(t, "tasks", map[string]interface{}{
+			"id":                 task.ID,
+			"estimated_duration": 5400,
+		}, false)
+		assert.Equal(t, int64(5400), readEstimate(t, s, task.ID))
+	})
+	t.Run("update sets and clears the estimate", func(t *testing.T) {
+		db.LoadAndAssertFixtures(t)
+		s := db.NewSession()
+		defer s.Close()
+
+		task := &Task{ID: 1, Title: "task #1", ProjectID: 1, EstimatedDuration: 3600}
+		require.NoError(t, task.Update(s, u))
+		require.NoError(t, s.Commit())
+		assert.Equal(t, int64(3600), readEstimate(t, s, 1))
+
+		task = &Task{ID: 1, Title: "task #1", ProjectID: 1, EstimatedDuration: 0}
+		require.NoError(t, task.Update(s, u))
+		require.NoError(t, s.Commit())
+		assert.Equal(t, int64(0), readEstimate(t, s, 1), "0 must clear the estimate")
+	})
+	t.Run("partial update writes the estimate when named", func(t *testing.T) {
+		db.LoadAndAssertFixtures(t)
+		s := db.NewSession()
+		defer s.Close()
+
+		task := &Task{ID: 3, EstimatedDuration: 900}
+		require.NoError(t, task.updateSingleTask(s, u, []string{"estimated_duration"}))
+		require.NoError(t, s.Commit())
+
+		updated := &Task{ID: 3}
+		require.NoError(t, updated.ReadOne(s, u))
+		assert.Equal(t, int64(900), updated.EstimatedDuration)
+		assert.Equal(t, "task #3 high prio", updated.Title, "title must survive since it wasn't in the fields list")
+	})
+	t.Run("partial update keeps the estimate when not named", func(t *testing.T) {
+		db.LoadAndAssertFixtures(t)
+		s := db.NewSession()
+		defer s.Close()
+
+		_, err := s.ID(3).Cols("estimated_duration").Update(&Task{EstimatedDuration: 1200})
+		require.NoError(t, err)
+
+		task := &Task{ID: 3, Title: "renamed"}
+		require.NoError(t, task.updateSingleTask(s, u, []string{"title"}))
+		require.NoError(t, s.Commit())
+
+		assert.Equal(t, int64(1200), readEstimate(t, s, 3))
+	})
+	t.Run("duplicate keeps the estimate", func(t *testing.T) {
+		db.LoadAndAssertFixtures(t)
+		s := db.NewSession()
+		defer s.Close()
+
+		_, err := s.ID(3).Cols("estimated_duration").Update(&Task{EstimatedDuration: 2700})
+		require.NoError(t, err)
+
+		td := &TaskDuplicate{TaskID: 3}
+		require.NoError(t, td.Create(s, u))
+		require.NoError(t, s.Commit())
+
+		assert.Equal(t, int64(2700), readEstimate(t, s, td.Task.ID))
 	})
 }
 

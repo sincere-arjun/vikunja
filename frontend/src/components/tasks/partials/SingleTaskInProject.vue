@@ -136,6 +136,16 @@
 					>
 						<Icon icon="history" />
 					</span>
+					<span
+						v-if="estimatedDuration !== ''"
+						v-tooltip="$t('task.attributes.estimatedDuration')"
+						class="project-task-icon estimated-duration"
+						role="img"
+						:aria-label="$t('task.attributes.estimatedDurationLabel', {duration: estimatedDuration})"
+					>
+						<Icon :icon="['far', 'hourglass-half']" />
+						{{ estimatedDuration }}
+					</span>
 					<CommentCount
 						:task="task"
 						class="project-task-icon"
@@ -208,6 +218,7 @@ import {ref, watch, onMounted, computed} from 'vue'
 import {useI18n} from 'vue-i18n'
 
 import {getHexColor} from '@/helpers/task'
+import {formatDuration} from '@/helpers/time/duration'
 import type {Task as ITask} from '@/client/generated'
 
 import PriorityLabel from '@/components/tasks/partials/PriorityLabel.vue'
@@ -268,6 +279,8 @@ function getTaskById(taskId: number | undefined): ITask | undefined {
 const {t} = useI18n({useScope: 'global'})
 
 const task = computed(() => props.theTask)
+
+const estimatedDuration = computed(() => formatDuration(task.value.estimated_duration))
 
 const isRepeating = computed(() => (task.value.repeat_after ?? 0) > 0
 	|| ((task.value.repeat_after ?? 0) === 0
@@ -496,6 +509,12 @@ defineExpose({
 			margin-inline-start: 8px;
 		}
 
+	}
+
+	.estimated-duration {
+		color: var(--grey-500);
+		font-size: .8rem;
+		white-space: nowrap;
 	}
 
 	a {

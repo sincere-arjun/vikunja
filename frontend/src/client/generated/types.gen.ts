@@ -2184,6 +2184,10 @@ export type Task = {
     due_date?: string;
     end_date?: string;
     /**
+     * The estimated time needed to complete this task, in seconds. 0 means no estimate.
+     */
+    estimated_duration?: number;
+    /**
      * The task color as a hex string without the leading '#'.
      */
     hex_color?: string;
@@ -2520,6 +2524,10 @@ export type TaskReadOneBody = {
     readonly done_at?: string;
     due_date?: string;
     end_date?: string;
+    /**
+     * The estimated time needed to complete this task, in seconds. 0 means no estimate.
+     */
+    estimated_duration?: number;
     /**
      * The task color as a hex string without the leading '#'.
      */
@@ -4541,6 +4549,10 @@ export type TaskWritable = {
     due_date?: string;
     end_date?: string;
     /**
+     * The estimated time needed to complete this task, in seconds. 0 means no estimate.
+     */
+    estimated_duration?: number;
+    /**
      * The task color as a hex string without the leading '#'.
      */
     hex_color?: string;
@@ -4641,6 +4653,10 @@ export type TaskReadOneBodyWritable = {
     done?: boolean;
     due_date?: string;
     end_date?: string;
+    /**
+     * The estimated time needed to complete this task, in seconds. 0 means no estimate.
+     */
+    estimated_duration?: number;
     /**
      * The task color as a hex string without the leading '#'.
      */
