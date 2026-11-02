@@ -1,6 +1,8 @@
 import type {APIRequestContext, Page} from '@playwright/test'
 import {test, expect} from '../../support/fixtures'
 import {TaskFactory} from '../../factories/task'
+import {BucketFactory} from '../../factories/bucket'
+import {TaskBucketFactory} from '../../factories/task_buckets'
 import {createProjects} from '../project/prepareProjects'
 import {apiRootUrl} from '../../support/apiUrl'
 
@@ -123,6 +125,39 @@ test.describe('Task estimated duration', () => {
 
 		await page.reload()
 		await expect(page.getByRole('textbox', {name: 'Estimate'})).toHaveValue('2h')
+		expect(await storedEstimate(apiContext, userToken, task.id)).toBe(7200)
+	})
+
+	test('Escape in the estimate field does not close the task pop-up', async ({authenticatedPage: page, apiContext, userToken}) => {
+		const [project] = await createProjects(1)
+		// The list view opens tasks as a page, the kanban board opens them in the pop-up.
+		const kanban = project.views[3]
+		const [bucket] = await BucketFactory.create(1, {project_view_id: kanban.id})
+		const [task] = await TaskFactory.create(1, {
+			project_id: project.id,
+			title: 'Pop-up task',
+			estimated_duration: 7200,
+		})
+		await TaskBucketFactory.create(1, {
+			task_id: task.id,
+			bucket_id: bucket.id,
+			project_view_id: kanban.id,
+		})
+
+		await page.goto(`/projects/${project.id}/${kanban.id}`)
+		await page.locator('.kanban-view .tasks .task').filter({hasText: 'Pop-up task'}).click()
+		const dialog = page.locator('dialog[open]')
+		const input = dialog.getByRole('textbox', {name: 'Estimate'})
+		await expect(input).toHaveValue('2h')
+
+		const saveRequests = countSaveRequests(page, task.id)
+		await input.fill('soon')
+		await input.press('Escape')
+
+		await expect(input).toHaveValue('2h')
+		await expect(dialog).toBeVisible()
+		await expect(page).toHaveURL(new RegExp(`/tasks/${task.id}$`))
+		expect(saveRequests.count).toBe(0)
 		expect(await storedEstimate(apiContext, userToken, task.id)).toBe(7200)
 	})
 
