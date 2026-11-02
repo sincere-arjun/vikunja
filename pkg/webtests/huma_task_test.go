@@ -27,6 +27,7 @@ import (
 	"code.vikunja.io/api/pkg/db"
 	"code.vikunja.io/api/pkg/models"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"xorm.io/builder"
@@ -221,6 +222,79 @@ func TestHumaTask_Create(t *testing.T) {
 	t.Run("Empty title is rejected", func(t *testing.T) {
 		rec := create("1", `{"title":""}`)
 		assert.Equal(t, http.StatusUnprocessableEntity, rec.Code, "body: %s", rec.Body.String())
+	})
+}
+
+func TestHumaTask_EstimatedDuration(t *testing.T) {
+	h := webHandlerTestV2{user: &testuser1, t: t}
+	require.NoError(t, h.ensureEnv())
+	token := humaTokenFor(t, &testuser1)
+
+	assertStored := func(t *testing.T, id int64, expected int64) {
+		t.Helper()
+		db.AssertExists(t, "tasks", map[string]interface{}{"id": id, "estimated_duration": expected}, false)
+	}
+	assertRejected := func(t *testing.T, rec *httptest.ResponseRecorder, location string) {
+		t.Helper()
+		require.Equal(t, http.StatusUnprocessableEntity, rec.Code, "body: %s", rec.Body.String())
+		var body huma.ErrorModel
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body), "body: %s", rec.Body.String())
+		var locations []string
+		for _, detail := range body.Errors {
+			locations = append(locations, detail.Location)
+		}
+		assert.Contains(t, locations, location)
+	}
+
+	t.Run("Create stores the estimate", func(t *testing.T) {
+		rec := humaRequest(t, h.e, http.MethodPost, "/api/v2/projects/1/tasks", `{"title":"estimated","estimated_duration":7200}`, token, "")
+		require.Equal(t, http.StatusCreated, rec.Code, "body: %s", rec.Body.String())
+		created := &models.Task{}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), created))
+		assert.Equal(t, int64(7200), created.EstimatedDuration)
+		assertStored(t, created.ID, 7200)
+	})
+	t.Run("Create rejects a negative estimate", func(t *testing.T) {
+		rec := humaRequest(t, h.e, http.MethodPost, "/api/v2/projects/1/tasks", `{"title":"negative","estimated_duration":-1}`, token, "")
+		assertRejected(t, rec, "body.estimated_duration")
+	})
+	t.Run("Update sets and clears the estimate", func(t *testing.T) {
+		rec := humaRequest(t, h.e, http.MethodPut, "/api/v2/tasks/6", `{"title":"task #6","estimated_duration":3600}`, token, "")
+		require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+		assert.Contains(t, rec.Body.String(), `"estimated_duration":3600`)
+		assertStored(t, 6, 3600)
+
+		rec = humaRequest(t, h.e, http.MethodPut, "/api/v2/tasks/6", `{"title":"task #6","estimated_duration":0}`, token, "")
+		require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+		assertStored(t, 6, 0)
+	})
+	t.Run("Update rejects a negative estimate", func(t *testing.T) {
+		rec := humaRequest(t, h.e, http.MethodPut, "/api/v2/tasks/6", `{"title":"task #6","estimated_duration":-60}`, token, "")
+		assertRejected(t, rec, "body.estimated_duration")
+	})
+	t.Run("Patch writes only the estimate", func(t *testing.T) {
+		rec := humaRequest(t, h.e, http.MethodPatch, "/api/v2/tasks/7", `[{"op":"replace","path":"/estimated_duration","value":1800}]`, token, "application/json-patch+json")
+		require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+		assert.Contains(t, rec.Body.String(), `"estimated_duration":1800`)
+		db.AssertExists(t, "tasks", map[string]interface{}{"id": 7, "estimated_duration": 1800, "title": "task #7 with start date"}, false)
+	})
+	t.Run("Bulk update writes the estimate as a named field", func(t *testing.T) {
+		rec := humaRequest(t, h.e, http.MethodPut, "/api/v2/tasks/bulk",
+			`{"task_ids":[8,9],"fields":["estimated_duration"],"values":{"estimated_duration":900}}`, token, "")
+		require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+		assertStored(t, 8, 900)
+		assertStored(t, 9, 900)
+	})
+	t.Run("Sort by estimate", func(t *testing.T) {
+		rec := humaRequest(t, h.e, http.MethodGet, "/api/v2/projects/1/tasks?sort_by=estimated_duration&order_by=desc&per_page=1", "", token, "")
+		require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+		assert.Contains(t, rec.Body.String(), `"estimated_duration":7200`)
+	})
+	t.Run("Filter by estimate", func(t *testing.T) {
+		rec := humaRequest(t, h.e, http.MethodGet, "/api/v2/projects/1/tasks?filter=estimated_duration+%3E+3600", "", token, "")
+		require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+		assert.Contains(t, rec.Body.String(), `"title":"estimated"`)
+		assert.NotContains(t, rec.Body.String(), `"estimated_duration":0`)
 	})
 }
 

@@ -58,6 +58,7 @@ func TestSortParamValidation(t *testing.T) {
 			taskPropertyEndDate,
 			taskPropertyHexColor,
 			taskPropertyPercentDone,
+			taskPropertyEstimatedDuration,
 			taskPropertyUID,
 			taskPropertyCreated,
 			taskPropertyUpdated,

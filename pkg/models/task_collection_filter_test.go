@@ -279,6 +279,16 @@ func TestParseFilter(t *testing.T) {
 		assert.Equal(t, taskFilterComparatorLessEquals, result[0].comparator)
 		assert.InEpsilon(t, float64(50), result[0].value, 0)
 	})
+	t.Run("estimated duration is an integer in seconds", func(t *testing.T) {
+		result, err := getTaskFiltersFromFilterString("estimated_duration > 3600", "UTC")
+
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "estimated_duration", result[0].field)
+		assert.Equal(t, taskFilterComparatorGreater, result[0].comparator)
+		assert.Equal(t, int64(3600), result[0].value)
+		assert.True(t, result[0].isNumeric)
+	})
 	t.Run("date field with exact date", func(t *testing.T) {
 		result, err := getTaskFiltersFromFilterString("start_date = 2023-06-15", "UTC")
 

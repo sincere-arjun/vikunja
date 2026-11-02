@@ -2614,3 +2614,70 @@ func TestTaskCollection_SavedFilterIncludeNulls(t *testing.T) {
 	}
 	assert.ElementsMatch(t, []int64{dated.ID, dateless.ID}, ids)
 }
+
+func TestTaskCollection_EstimatedDuration(t *testing.T) {
+	db.LoadAndAssertFixtures(t)
+	u := &user.User{ID: 1}
+
+	s := db.NewSession()
+	defer s.Close()
+
+	project := &Project{Title: "estimates", OwnerID: u.ID}
+	insertTestProject(t, s, project)
+
+	unestimated := &Task{Title: "unestimated", ProjectID: project.ID, CreatedByID: u.ID, Index: 1}
+	twoHours := &Task{Title: "two hours", ProjectID: project.ID, CreatedByID: u.ID, Index: 2, EstimatedDuration: 7200}
+	halfHour := &Task{Title: "half hour", ProjectID: project.ID, CreatedByID: u.ID, Index: 3, EstimatedDuration: 1800}
+	oneHour := &Task{Title: "one hour", ProjectID: project.ID, CreatedByID: u.ID, Index: 4, EstimatedDuration: 3600}
+	for _, task := range []*Task{unestimated, twoHours, halfHour, oneHour} {
+		_, err := s.Insert(task)
+		require.NoError(t, err)
+	}
+	require.NoError(t, s.Commit())
+
+	readIDs := func(t *testing.T, tc *TaskCollection) []int64 {
+		t.Helper()
+		s := db.NewSession()
+		defer s.Close()
+		tc.ProjectID = project.ID
+		result, _, _, err := tc.ReadAll(s, u, "", 1, 50)
+		require.NoError(t, err)
+		ids := []int64{}
+		for _, task := range result.([]*Task) {
+			ids = append(ids, task.ID)
+		}
+		return ids
+	}
+
+	t.Run("sort ascending", func(t *testing.T) {
+		ids := readIDs(t, &TaskCollection{SortBy: []string{"estimated_duration", "id"}, OrderBy: []string{"asc", "asc"}})
+		assert.Equal(t, []int64{unestimated.ID, halfHour.ID, oneHour.ID, twoHours.ID}, ids)
+	})
+	t.Run("sort descending", func(t *testing.T) {
+		ids := readIDs(t, &TaskCollection{SortBy: []string{"estimated_duration", "id"}, OrderBy: []string{"desc", "asc"}})
+		assert.Equal(t, []int64{twoHours.ID, oneHour.ID, halfHour.ID, unestimated.ID}, ids)
+	})
+
+	for _, tc := range []struct {
+		filter   string
+		expected []*Task
+	}{
+		{"estimated_duration > 3600", []*Task{twoHours}},
+		{"estimated_duration >= 3600", []*Task{oneHour, twoHours}},
+		{"estimated_duration < 3600", []*Task{unestimated, halfHour}},
+		{"estimated_duration <= 1800", []*Task{unestimated, halfHour}},
+		{"estimated_duration = 3600", []*Task{oneHour}},
+		{"estimated_duration != 0", []*Task{halfHour, oneHour, twoHours}},
+		{"estimated_duration = 0", []*Task{unestimated}},
+		{"estimated_duration in 1800, 7200", []*Task{halfHour, twoHours}},
+		{"estimated_duration not in 1800, 7200", []*Task{unestimated, oneHour}},
+	} {
+		t.Run(tc.filter, func(t *testing.T) {
+			expected := []int64{}
+			for _, task := range tc.expected {
+				expected = append(expected, task.ID)
+			}
+			assert.ElementsMatch(t, expected, readIDs(t, &TaskCollection{Filter: tc.filter}))
+		})
+	}
+}
