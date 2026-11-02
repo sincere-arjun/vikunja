@@ -1561,6 +1561,29 @@ END:VTODO` + vtodoFooter
 		assert.InDelta(t, 0.5, task.PercentDone, 0.0001, "percent_done must survive a PUT that doesn't carry PERCENT-COMPLETE")
 	})
 
+	t.Run("PUT preserves estimated_duration, which VTODO does not carry", func(t *testing.T) {
+		e, _ := setupTestEnv()
+
+		s := db.NewSession()
+		_, err := s.ID(int64(40)).Cols("estimated_duration").Update(&models.Task{EstimatedDuration: 5400})
+		require.NoError(t, err)
+		require.NoError(t, s.Commit())
+		s.Close()
+
+		const vtodo = vtodoHeader + `BEGIN:VTODO
+UID:uid-caldav-test
+DTSTAMP:20230301T073337Z
+SUMMARY:Just a title change
+END:VTODO` + vtodoFooter
+
+		rec, err := newCaldavTestRequestWithUser(t, e, http.MethodPut, caldav.TaskHandler, &testuser15, vtodo, nil, map[string]string{"project": "36", "task": "uid-caldav-test"})
+		require.NoError(t, err)
+		assert.Equal(t, 201, rec.Result().StatusCode)
+
+		task := getTask(t, "uid-caldav-test")
+		assert.Equal(t, int64(5400), task.EstimatedDuration)
+	})
+
 	t.Run("PUT preserves assignees, reminders and favorite state", func(t *testing.T) {
 		e, _ := setupTestEnv()
 
