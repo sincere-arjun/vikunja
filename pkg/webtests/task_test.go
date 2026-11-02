@@ -17,6 +17,7 @@
 package webtests
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -458,6 +459,21 @@ func TestTask(t *testing.T) {
 			rec, err := testHandler.testCreateWithUser(nil, map[string]string{"project": "1"}, `{"title":"Lorem Ipsum"}`)
 			require.NoError(t, err)
 			assert.Contains(t, rec.Body.String(), `"title":"Lorem Ipsum"`)
+		})
+		t.Run("Estimated duration", func(t *testing.T) {
+			rec, err := testHandler.testCreateWithUser(nil, map[string]string{"project": "1"}, `{"title":"Lorem Ipsum","estimated_duration":7200}`)
+			require.NoError(t, err)
+			assert.Contains(t, rec.Body.String(), `"estimated_duration":7200`)
+			created := &models.Task{}
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), created))
+			db.AssertExists(t, "tasks", map[string]interface{}{"id": created.ID, "estimated_duration": 7200}, false)
+		})
+		t.Run("Estimated duration negative", func(t *testing.T) {
+			_, err := testHandler.testCreateWithUser(nil, map[string]string{"project": "1"}, `{"title":"Lorem Ipsum","estimated_duration":-1}`)
+			require.Error(t, err)
+			assert.Equal(t, http.StatusPreconditionFailed, getHTTPErrorCode(err))
+			assert.Contains(t, err.(models.ValidationHTTPError).InvalidFields[0], "estimated_duration")
+			db.AssertMissing(t, "tasks", map[string]interface{}{"project_id": 1, "estimated_duration": -1})
 		})
 		t.Run("Nonexisting", func(t *testing.T) {
 			_, err := testHandler.testCreateWithUser(nil, map[string]string{"project": "9999"}, `{"title":"Lorem Ipsum"}`)

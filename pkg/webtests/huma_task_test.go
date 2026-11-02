@@ -245,6 +245,34 @@ func TestHumaTask_EstimatedDuration(t *testing.T) {
 		}
 		assert.Contains(t, locations, location)
 	}
+	// seedEstimates clears every stored estimate, then sets the given ones,
+	// so a subtest doesn't depend on what earlier subtests wrote.
+	seedEstimates := func(t *testing.T, estimates map[int64]int64) {
+		t.Helper()
+		s := db.NewSession()
+		defer s.Close()
+		_, err := s.Table("tasks").Where("estimated_duration != 0").Update(map[string]interface{}{"estimated_duration": 0})
+		require.NoError(t, err)
+		for id, estimate := range estimates {
+			_, err = s.Table("tasks").Where("id = ?", id).Update(map[string]interface{}{"estimated_duration": estimate})
+			require.NoError(t, err)
+		}
+		require.NoError(t, s.Commit())
+	}
+	taskIDs := func(t *testing.T, rec *httptest.ResponseRecorder) []int64 {
+		t.Helper()
+		var body struct {
+			Items []struct {
+				ID int64 `json:"id"`
+			} `json:"items"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body), "body: %s", rec.Body.String())
+		ids := make([]int64, 0, len(body.Items))
+		for _, item := range body.Items {
+			ids = append(ids, item.ID)
+		}
+		return ids
+	}
 
 	t.Run("Create stores the estimate", func(t *testing.T) {
 		rec := humaRequest(t, h.e, http.MethodPost, "/api/v2/projects/1/tasks", `{"title":"estimated","estimated_duration":7200}`, token, "")
@@ -286,15 +314,22 @@ func TestHumaTask_EstimatedDuration(t *testing.T) {
 		assertStored(t, 9, 900)
 	})
 	t.Run("Sort by estimate", func(t *testing.T) {
-		rec := humaRequest(t, h.e, http.MethodGet, "/api/v2/projects/1/tasks?sort_by=estimated_duration&order_by=desc&per_page=1", "", token, "")
+		seedEstimates(t, map[int64]int64{3: 7200, 4: 3600, 5: 5400})
+
+		rec := humaRequest(t, h.e, http.MethodGet, "/api/v2/projects/1/tasks?sort_by=estimated_duration&sort_by=id&order_by=desc&order_by=asc&per_page=3", "", token, "")
 		require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
-		assert.Contains(t, rec.Body.String(), `"estimated_duration":7200`)
+		assert.Equal(t, []int64{3, 5, 4}, taskIDs(t, rec))
+
+		rec = humaRequest(t, h.e, http.MethodGet, "/api/v2/projects/1/tasks?filter=estimated_duration+%3E+0&sort_by=estimated_duration&order_by=asc", "", token, "")
+		require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+		assert.Equal(t, []int64{4, 5, 3}, taskIDs(t, rec))
 	})
 	t.Run("Filter by estimate", func(t *testing.T) {
+		seedEstimates(t, map[int64]int64{3: 7200, 4: 3600, 5: 5400})
+
 		rec := humaRequest(t, h.e, http.MethodGet, "/api/v2/projects/1/tasks?filter=estimated_duration+%3E+3600", "", token, "")
 		require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
-		assert.Contains(t, rec.Body.String(), `"title":"estimated"`)
-		assert.NotContains(t, rec.Body.String(), `"estimated_duration":0`)
+		assert.ElementsMatch(t, []int64{3, 5}, taskIDs(t, rec))
 	})
 }
 
