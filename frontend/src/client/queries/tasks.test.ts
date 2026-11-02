@@ -30,8 +30,8 @@ describe('task queries', () => {
 	})
 	it('fills every guaranteed field at the read boundary', () => {
 		expect(normalizeTask({id: 1})).toEqual({
-			id: 1, title: '', description: '', done: false, priority: 0, percent_done: 0, hex_color: '',
-			is_favorite: false, identifier: '', index: 0, position: 0, project_id: 0, bucket_id: 0,
+			id: 1, title: '', description: '', done: false, priority: 0, percent_done: 0, estimated_duration: 0,
+			hex_color: '', is_favorite: false, identifier: '', index: 0, position: 0, project_id: 0, bucket_id: 0,
 			repeat_after: 0, repeat_mode: 0, cover_image_attachment_id: 0,
 			labels: [], assignees: [], reminders: [], attachments: [], related_tasks: {}, reactions: {},
 		})

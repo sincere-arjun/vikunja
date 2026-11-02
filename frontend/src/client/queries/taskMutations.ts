@@ -52,6 +52,7 @@ const writableFields = [
 	'priority',
 	'hex_color',
 	'percent_done',
+	'estimated_duration',
 	'repeat_after',
 	'repeat_mode',
 	'is_favorite',

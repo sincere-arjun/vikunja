@@ -26,6 +26,7 @@ export function createTaskDraft(data: Partial<Task> = {}) {
 		repeat_after: data.repeat_after ?? 0,
 		repeat_mode: data.repeat_mode ?? 0,
 		percent_done: data.percent_done ?? 0,
+		estimated_duration: data.estimated_duration ?? 0,
 		hex_color: data.hex_color ?? '',
 		is_favorite: data.is_favorite ?? false,
 		cover_image_attachment_id: data.cover_image_attachment_id ?? 0,

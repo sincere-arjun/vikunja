@@ -63,6 +63,9 @@
 							<FancyCheckbox v-model="activeColumns.percentDone">
 								{{ $t('task.attributes.percentDone') }}
 							</FancyCheckbox>
+							<FancyCheckbox v-model="activeColumns.estimatedDuration">
+								{{ $t('task.attributes.estimatedDuration') }}
+							</FancyCheckbox>
 							<FancyCheckbox v-model="activeColumns.doneAt">
 								{{ $t('task.attributes.doneAt') }}
 							</FancyCheckbox>
@@ -202,6 +205,17 @@
 										/>
 									</th>
 									<th
+										v-if="activeColumns.estimatedDuration"
+										:aria-sort="ariaSort('estimated_duration')"
+									>
+										{{ $t('task.attributes.estimatedDuration') }}
+										<Sort
+											:order="sortBy.estimated_duration"
+											:label="$t('task.attributes.estimatedDuration')"
+											@click="sort('estimated_duration', $event)"
+										/>
+									</th>
+									<th
 										v-if="activeColumns.doneAt"
 										:aria-sort="ariaSort('done_at')"
 									>
@@ -306,6 +320,9 @@
 									<td v-if="activeColumns.percentDone">
 										{{ t.percent_done * 100 }}%
 									</td>
+									<td v-if="activeColumns.estimatedDuration">
+										{{ formatDuration(t.estimated_duration) }}
+									</td>
 									<DateTableCell
 										v-if="activeColumns.doneAt"
 										:date="t.done_at"
@@ -373,6 +390,7 @@ import {useTableSort} from '@/composables/useTableSort'
 import {useDelayedLoading} from '@/composables/useDelayedLoading'
 import AssigneeList from '@/components/tasks/partials/AssigneeList.vue'
 import {getTaskIdentifier} from '@/helpers/task'
+import {formatDuration} from '@/helpers/time/duration'
 import { camelCase } from 'change-case'
 import {isSavedFilterProject} from '@/client/queries/projects'
 import {useProjects} from '@/composables/useProjects'
@@ -408,6 +426,7 @@ const ACTIVE_COLUMNS_DEFAULT = {
 	startDate: false,
 	endDate: false,
 	percentDone: false,
+	estimatedDuration: false,
 	created: false,
 	updated: false,
 	createdBy: false,

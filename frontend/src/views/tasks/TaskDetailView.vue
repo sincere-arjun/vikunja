@@ -175,6 +175,27 @@
 							appear
 						>
 							<div
+								v-if="activeFields.estimatedDuration"
+								class="column"
+							>
+								<!-- Estimated duration -->
+								<div class="detail-title">
+									<Icon :icon="['far', 'hourglass-half']" />
+									{{ $t('task.attributes.estimatedDuration') }}
+								</div>
+								<EstimatedDurationInput
+									:ref="e => setFieldRef('estimatedDuration', e)"
+									v-model="task.estimated_duration"
+									:disabled="!canWrite"
+									@update:modelValue="setEstimatedDuration"
+								/>
+							</div>
+						</CustomTransition>
+						<CustomTransition
+							name="flash-background"
+							appear
+						>
+							<div
 								v-if="activeFields.startDate"
 								class="column"
 							>
@@ -595,6 +616,13 @@
 							{{ $t('task.detail.actions.repeatAfter') }}
 						</XButton>
 						<XButton
+							variant="secondary"
+							:icon="['far', 'hourglass-half']"
+							@click="setFieldActive('estimatedDuration')"
+						>
+							{{ $t('task.detail.actions.estimatedDuration') }}
+						</XButton>
+						<XButton
 							v-shortcut="SHORTCUTS.taskDetail.delete"
 							icon="trash-alt"
 							:shadow="false"
@@ -683,6 +711,7 @@ import EditLabels from '@/components/tasks/partials/EditLabels.vue'
 import Heading from '@/components/tasks/partials/Heading.vue'
 import ProjectSearch from '@/components/tasks/partials/ProjectSearch.vue'
 import PercentDoneSelect from '@/components/tasks/partials/PercentDoneSelect.vue'
+import EstimatedDurationInput from '@/components/tasks/partials/EstimatedDurationInput.vue'
 import PrioritySelect from '@/components/tasks/partials/PrioritySelect.vue'
 import RelatedTasks from '@/components/tasks/partials/RelatedTasks.vue'
 import Reminders from '@/components/tasks/partials/Reminders.vue'
@@ -767,11 +796,22 @@ const task = ref(createTaskDraft())
 
 // Only fields edited here stay local; the rest follows the cache.
 function followServerFields(loaded: ITask) {
-	const {priority, percent_done, due_date, start_date, end_date, reminders, repeat_after, repeat_mode} = task.value
+	const {
+		priority,
+		percent_done,
+		estimated_duration,
+		due_date,
+		start_date,
+		end_date,
+		reminders,
+		repeat_after,
+		repeat_mode,
+	} = task.value
 	task.value = {
 		...createTaskDraft(klona(loaded)),
 		priority,
 		percent_done,
+		estimated_duration,
 		due_date,
 		start_date,
 		end_date,
@@ -981,6 +1021,7 @@ type FieldType =
 	| 'color'
 	| 'dueDate'
 	| 'endDate'
+	| 'estimatedDuration'
 	| 'labels'
 	| 'moveProject'
 	| 'percentDone'
@@ -997,6 +1038,7 @@ const activeFields: { [type in FieldType]: boolean } = reactive({
 	color: false,
 	dueDate: false,
 	endDate: false,
+	estimatedDuration: false,
 	labels: false,
 	moveProject: false,
 	percentDone: false,
@@ -1015,6 +1057,7 @@ function setActiveFields() {
 	activeFields.timeTracking = (task.value.time_entries_count ?? 0) > 0
 	activeFields.dueDate = Boolean(parseDateOrNull(task.value.due_date))
 	activeFields.endDate = Boolean(parseDateOrNull(task.value.end_date))
+	activeFields.estimatedDuration = (task.value.estimated_duration ?? 0) > 0
 	activeFields.labels = (task.value.labels?.length ?? 0) > 0
 	activeFields.percentDone = (task.value.percent_done ?? 0) > 0
 	activeFields.priority = task.value.priority !== PRIORITIES.UNSET
@@ -1060,6 +1103,7 @@ const activeFieldElements: { [id in FieldType]: HTMLElement | null } = reactive(
 	color: null,
 	dueDate: null,
 	endDate: null,
+	estimatedDuration: null,
 	labels: null,
 	moveProject: null,
 	percentDone: null,
@@ -1256,6 +1300,15 @@ async function setPercentDone(percentDone: number) {
 	const newTask: ITask = {
 		...task.value,
 		percent_done: percentDone,
+	}
+
+	return saveTask(newTask)
+}
+
+async function setEstimatedDuration(estimatedDuration: number) {
+	const newTask: ITask = {
+		...task.value,
+		estimated_duration: estimatedDuration,
 	}
 
 	return saveTask(newTask)

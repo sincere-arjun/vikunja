@@ -1,0 +1,91 @@
+import {describe, it, expect} from 'vitest'
+import {mount} from '@vue/test-utils'
+
+import EstimatedDurationInput from './EstimatedDurationInput.vue'
+
+function mountInput(modelValue: number) {
+	const wrapper = mount(EstimatedDurationInput, {
+		props: {
+			modelValue,
+			'onUpdate:modelValue': (value: number) => wrapper.setProps({modelValue: value}),
+		},
+		global: {
+			mocks: {$t: (key: string) => key},
+		},
+	})
+	return wrapper
+}
+
+function emitted(wrapper: ReturnType<typeof mountInput>) {
+	return wrapper.emitted<[number]>('update:modelValue')?.map(([value]) => value) ?? []
+}
+
+describe('EstimatedDurationInput', () => {
+	it('shows the formatted model value', () => {
+		const wrapper = mountInput(5400)
+		expect(wrapper.find('input').element.value).toBe('1h 30m')
+	})
+
+	// The task detail focuses and scrolls to a field through the component's root element.
+	it('renders a single root element', () => {
+		expect(mountInput(0).vm.$el).toBeInstanceOf(HTMLElement)
+	})
+
+	it('saves once when Enter is followed by blur', async () => {
+		const wrapper = mountInput(0)
+		const input = wrapper.find('input')
+		await input.setValue('1.5h')
+		await input.trigger('keydown', {key: 'Enter'})
+		await input.trigger('blur')
+
+		expect(emitted(wrapper)).toEqual([5400])
+		expect(input.element.value).toBe('1h 30m')
+	})
+
+	it('does not save again when the formatted value rounds the input', async () => {
+		const wrapper = mountInput(0)
+		const input = wrapper.find('input')
+		await input.setValue('0.5m')
+		await input.trigger('blur')
+		await input.trigger('blur')
+
+		expect(emitted(wrapper)).toEqual([30])
+		expect(input.element.value).toBe('1m')
+	})
+
+	it('does not save an unchanged duration typed differently', async () => {
+		const wrapper = mountInput(5400)
+		const input = wrapper.find('input')
+		await input.setValue('90m')
+		await input.trigger('blur')
+
+		expect(emitted(wrapper)).toEqual([])
+		expect(input.element.value).toBe('1h 30m')
+	})
+
+	it('shows an error and keeps the text for invalid input without saving', async () => {
+		const wrapper = mountInput(5400)
+		const input = wrapper.find('input')
+		await input.setValue('1h 30')
+		await input.trigger('blur')
+
+		expect(emitted(wrapper)).toEqual([])
+		expect(input.element.value).toBe('1h 30')
+		expect(input.attributes('aria-invalid')).toBe('true')
+		expect(wrapper.find('.help.is-danger').text()).toBe('task.detail.estimatedDurationInvalid')
+
+		await input.setValue('2h')
+		await input.trigger('blur')
+		expect(emitted(wrapper)).toEqual([7200])
+		expect(wrapper.find('.help.is-danger').exists()).toBe(false)
+	})
+
+	it('clears the estimate when the input is emptied', async () => {
+		const wrapper = mountInput(5400)
+		const input = wrapper.find('input')
+		await input.setValue('')
+		await input.trigger('blur')
+
+		expect(emitted(wrapper)).toEqual([0])
+	})
+})

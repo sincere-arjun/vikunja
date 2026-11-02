@@ -355,6 +355,11 @@ describe('task mutations', () => {
 		})
 	})
 
+	it('sends the estimated duration, including 0 to clear it', () => {
+		expect(taskWriteBody({estimated_duration: 5400})).toEqual({estimated_duration: 5400})
+		expect(taskWriteBody({estimated_duration: 0})).toEqual({estimated_duration: 0})
+	})
+
 	it('leaves boards without the completed task untouched and unfetched', async () => {
 		const {projectKeys} = await import('./projects')
 		const client = new QueryClient()

@@ -9,6 +9,7 @@ describe('Filter Transformation', () => {
 		'done': 'done',
 		'priority': 'priority',
 		'percentDone': 'percent_done',
+		'estimatedDuration': 'estimated_duration',
 		'dueDate': 'due_date',
 		'startDate': 'start_date',
 		'endDate': 'end_date',

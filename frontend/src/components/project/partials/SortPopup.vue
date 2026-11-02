@@ -97,6 +97,8 @@ const options = computed(() => {
 		{value: 'end_date:desc', label: t('sorting.options.endDateDesc')},
 		{value: 'percent_done:desc', label: t('sorting.options.percentDoneDesc')},
 		{value: 'percent_done:asc', label: t('sorting.options.percentDoneAsc')},
+		{value: 'estimated_duration:desc', label: t('sorting.options.estimatedDurationDesc')},
+		{value: 'estimated_duration:asc', label: t('sorting.options.estimatedDurationAsc')},
 		{value: 'created:desc', label: t('sorting.options.createdDesc')},
 		{value: 'created:asc', label: t('sorting.options.createdAsc')},
 		{value: 'updated:desc', label: t('sorting.options.updatedDesc')},
