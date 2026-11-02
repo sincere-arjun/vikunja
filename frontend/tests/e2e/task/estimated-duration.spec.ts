@@ -155,10 +155,16 @@ test.describe('Task estimated duration', () => {
 		await input.press('Escape')
 
 		await expect(input).toHaveValue('2h')
-		await expect(dialog).toBeVisible()
-		await expect(page).toHaveURL(new RegExp(`/tasks/${task.id}$`))
+
+		// Closing the pop-up navigates a moment after the key press, so give it
+		// time with network round trips before checking it is still open.
+		for (let i = 0; i < 2; i++) {
+			expect(await storedEstimate(apiContext, userToken, task.id)).toBe(7200)
+			await expect(dialog).toBeVisible()
+			await expect(page).toHaveURL(new RegExp(`/tasks/${task.id}$`))
+		}
+		await expect(input).toHaveValue('2h')
 		expect(saveRequests.count).toBe(0)
-		expect(await storedEstimate(apiContext, userToken, task.id)).toBe(7200)
 	})
 
 	test('clearing the input removes the estimate', async ({authenticatedPage: page, apiContext, userToken}) => {
