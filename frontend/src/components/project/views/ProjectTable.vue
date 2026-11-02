@@ -320,7 +320,10 @@
 									<td v-if="activeColumns.percentDone">
 										{{ t.percent_done * 100 }}%
 									</td>
-									<td v-if="activeColumns.estimatedDuration">
+									<td
+										v-if="activeColumns.estimatedDuration"
+										class="is-nowrap"
+									>
 										{{ formatDuration(t.estimated_duration) }}
 									</td>
 									<DateTableCell
@@ -494,7 +497,8 @@ const taskDetailRoutes = computed(() => Object.fromEntries(
 	overflow-x: auto;
 	overflow-y: hidden;
 
-	th {
+	th,
+	.is-nowrap {
 		white-space: nowrap;
 	}
 

@@ -42,15 +42,24 @@ describe('EstimatedDurationInput', () => {
 		expect(input.element.value).toBe('1h 30m')
 	})
 
-	it('does not save again when the formatted value rounds the input', async () => {
+	it('saves whole minutes once and shows them formatted', async () => {
 		const wrapper = mountInput(0)
 		const input = wrapper.find('input')
-		await input.setValue('0.5m')
+		await input.setValue('1.4m')
 		await input.trigger('blur')
 		await input.trigger('blur')
 
-		expect(emitted(wrapper)).toEqual([30])
+		expect(emitted(wrapper)).toEqual([60])
 		expect(input.element.value).toBe('1m')
+	})
+
+	it('does not overwrite an estimate that is not whole minutes when left untouched', async () => {
+		const wrapper = mountInput(30)
+		const input = wrapper.find('input')
+		expect(input.element.value).toBe('1m')
+		await input.trigger('blur')
+
+		expect(emitted(wrapper)).toEqual([])
 	})
 
 	it('does not save an unchanged duration typed differently', async () => {
@@ -78,6 +87,23 @@ describe('EstimatedDurationInput', () => {
 		await input.trigger('blur')
 		expect(emitted(wrapper)).toEqual([7200])
 		expect(wrapper.find('.help.is-danger').exists()).toBe(false)
+	})
+
+	it('restores the saved estimate on Escape without saving', async () => {
+		const wrapper = mountInput(7200)
+		const input = wrapper.find('input')
+		await input.setValue('soon')
+		await input.trigger('blur')
+		expect(wrapper.find('.help.is-danger').exists()).toBe(true)
+
+		await input.setValue('')
+		await input.trigger('keydown', {key: 'Escape'})
+		expect(input.element.value).toBe('2h')
+		expect(input.attributes('aria-invalid')).not.toBe('true')
+		expect(wrapper.find('.help.is-danger').exists()).toBe(false)
+
+		await input.trigger('blur')
+		expect(emitted(wrapper)).toEqual([])
 	})
 
 	it('clears the estimate when the input is emptied', async () => {

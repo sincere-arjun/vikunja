@@ -12,7 +12,6 @@ describe('parseDuration', () => {
 		['2d4h30m', 189000],
 		['1d', 86400],
 		['45m', 2700],
-		['0.5m', 30],
 		['30m 1h', 5400],
 	])('parses "%s" as %i seconds', (input, expected) => {
 		expect(parseDuration(input)).toBe(expected)
@@ -37,16 +36,19 @@ describe('parseDuration', () => {
 	it.each([
 		['90', 5400],
 		[' 90 ', 5400],
-		['1.5', 90],
 		['0', 0],
-	])('reads the bare number "%s" as minutes', (input, expected) => {
+	])('reads the bare integer "%s" as minutes', (input, expected) => {
 		expect(parseDuration(input)).toBe(expected)
 	})
 
 	it.each([
 		[''],
 		['   '],
-	])('returns 0 for empty input %j', (input) => {
+		['0m'],
+		['0h'],
+		['0d'],
+		['0h 0m'],
+	])('returns 0 for %j', (input) => {
 		expect(parseDuration(input)).toBe(0)
 	})
 
@@ -70,6 +72,9 @@ describe('parseDuration', () => {
 		['1e3'],
 		['Infinity'],
 		['NaN'],
+		// Most people typing "1.5" mean hours, so a bare decimal needs a unit.
+		['1.5'],
+		['0.5'],
 	])('rejects "%s"', (input) => {
 		expect(parseDuration(input)).toBeNull()
 	})
@@ -79,9 +84,24 @@ describe('parseDuration', () => {
 		expect(parseDuration('9'.repeat(400))).toBeNull()
 	})
 
-	it('rounds fractional seconds', () => {
-		expect(parseDuration('0.01m')).toBe(1)
-		expect(parseDuration('0.001m')).toBe(0)
+	// Stores only what formatDuration can show.
+	it.each([
+		['1.5m', 120],
+		['0.5m', 60],
+		['1.01h', 3660],
+		['0.1h', 360],
+		['1.4m', 60],
+	])('rounds "%s" to whole minutes (%i seconds)', (input, expected) => {
+		expect(parseDuration(input)).toBe(expected)
+	})
+
+	it.each([
+		['0.001m'],
+		['0.01m'],
+		['0.2m'],
+		['0.001h'],
+	])('rejects "%s", which rounds to no estimate', (input) => {
+		expect(parseDuration(input)).toBeNull()
 	})
 })
 

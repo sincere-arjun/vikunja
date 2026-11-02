@@ -30,7 +30,7 @@ function deferred() {
 	return {promise, resolve}
 }
 
-function mountRow() {
+function mountRow(task: ITask = theTask) {
 	const router = createRouter({
 		history: createMemoryHistory(),
 		routes: [
@@ -39,11 +39,15 @@ function mountRow() {
 		],
 	})
 	return shallowMount(SingleTaskInProject, {
-		props: {theTask},
+		props: {theTask: task},
 		global: {
 			plugins: [createPinia(), router, [VueQueryPlugin, {queryClient: new QueryClient({defaultOptions: {queries: {retry: false}}})}]],
 			directives: {tooltip: {}},
-			mocks: {$t: (key: string) => key},
+			mocks: {
+				$t: (key: string, named?: unknown) => named && typeof named === 'object'
+					? `${key} ${JSON.stringify(named)}`
+					: key,
+			},
 		},
 	})
 }
@@ -88,5 +92,18 @@ describe('SingleTaskInProject', () => {
 		await flushPromises()
 
 		expect(wrapper.get('.task').classes()).not.toContain('is-loading')
+	})
+
+	it('names the estimate for screen readers', () => {
+		const wrapper = mountRow({...theTask, estimated_duration: 5400})
+		const estimate = wrapper.get('.estimated-duration')
+
+		expect(estimate.attributes('role')).toBe('img')
+		expect(estimate.attributes('aria-label')).toBe('task.attributes.estimatedDurationLabel {"duration":"1h 30m"}')
+		expect(estimate.text()).toBe('1h 30m')
+	})
+
+	it('shows no estimate on rows without one', () => {
+		expect(mountRow({...theTask, estimated_duration: 0}).find('.estimated-duration').exists()).toBe(false)
 	})
 })

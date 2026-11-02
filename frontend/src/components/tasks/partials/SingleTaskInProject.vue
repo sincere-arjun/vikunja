@@ -140,6 +140,8 @@
 						v-if="estimatedDuration !== ''"
 						v-tooltip="$t('task.attributes.estimatedDuration')"
 						class="project-task-icon estimated-duration"
+						role="img"
+						:aria-label="$t('task.attributes.estimatedDurationLabel', {duration: estimatedDuration})"
 					>
 						<Icon :icon="['far', 'hourglass-half']" />
 						{{ estimatedDuration }}

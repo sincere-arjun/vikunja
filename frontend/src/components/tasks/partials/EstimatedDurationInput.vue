@@ -16,6 +16,7 @@
 			:error="invalid ? $t('task.detail.estimatedDurationInvalid') : null"
 			@blur="commit"
 			@keydown.enter.prevent="commit"
+			@keydown.esc.prevent.stop="!$event.isComposing && reset()"
 		/>
 	</div>
 </template>
@@ -43,8 +44,13 @@ watch(estimatedDuration, seconds => {
 	invalid.value = false
 }, {immediate: true})
 
+function reset() {
+	text.value = formatDuration(estimatedDuration.value)
+	invalid.value = false
+}
+
 function commit() {
-	// Comparing text, not seconds: "0.5m" shows as "1m", which must not save again on blur.
+	// Comparing text, not seconds: 30 seconds set through the API shows as "1m", which must not save on blur.
 	if (String(text.value) === formatDuration(estimatedDuration.value)) {
 		invalid.value = false
 		return

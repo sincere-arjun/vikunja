@@ -4,18 +4,18 @@ import {
 	SECONDS_A_MINUTE,
 } from '@/constants/date'
 
-const UNIT_SECONDS: Record<string, number> = {
-	d: SECONDS_A_DAY,
-	h: SECONDS_A_HOUR,
-	m: SECONDS_A_MINUTE,
+const UNIT_MINUTES: Record<string, number> = {
+	d: SECONDS_A_DAY / SECONDS_A_MINUTE,
+	h: SECONDS_A_HOUR / SECONDS_A_MINUTE,
+	m: 1,
 }
 
-const BARE_NUMBER = /^\d+(?:\.\d+)?$/
+const BARE_INTEGER = /^\d+$/
 const DURATION = /^(?:\d+(?:\.\d+)?\s*[dhm]\s*)+$/
 const DURATION_PART = /(\d+(?:\.\d+)?)\s*([dhm])/g
 
 /**
- * Parses user input like "1h 30m", "1.5h", "2d 4h" or "90" (minutes) into seconds.
+ * Parses user input like "1h 30m", "1.5h", "2d 4h" or "90" (minutes) into seconds, rounded to whole minutes.
  * Returns 0 for empty input and null for anything it can't read.
  */
 export function parseDuration(input: string): number | null {
@@ -24,9 +24,9 @@ export function parseDuration(input: string): number | null {
 		return 0
 	}
 
-	let seconds = 0
-	if (BARE_NUMBER.test(text)) {
-		seconds = Number(text) * SECONDS_A_MINUTE
+	let minutes = 0
+	if (BARE_INTEGER.test(text)) {
+		minutes = Number(text)
 	} else if (DURATION.test(text)) {
 		const seenUnits = new Set<string>()
 		for (const [, amount, unit] of text.matchAll(DURATION_PART)) {
@@ -35,13 +35,20 @@ export function parseDuration(input: string): number | null {
 				return null
 			}
 			seenUnits.add(unit)
-			seconds += Number(amount) * UNIT_SECONDS[unit]
+			minutes += Number(amount) * UNIT_MINUTES[unit]
 		}
 	} else {
 		return null
 	}
 
-	seconds = Math.round(seconds)
+	// Store only what formatDuration can show.
+	const roundedMinutes = Math.round(minutes)
+	// "0.2m" must not clear the estimate; only an explicit zero does.
+	if (roundedMinutes === 0 && minutes > 0) {
+		return null
+	}
+
+	const seconds = roundedMinutes * SECONDS_A_MINUTE
 	return Number.isSafeInteger(seconds) ? seconds : null
 }
 
